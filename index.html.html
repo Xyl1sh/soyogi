@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy"
+  content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex">
+<title>そよぎ — VRChat 動画URL変換</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cg fill='none' stroke='%2300A0AE' stroke-width='3' stroke-linecap='round'%3E%3Cpath d='M9 15C15 11 22 11 27 13' opacity='.4'/%3E%3Cpath d='M4 21C12 15 26 15 33 19'/%3E%3Cpath d='M10 27C16 23 24 23 29 25' opacity='.6'/%3E%3C/g%3E%3Ccircle cx='35' cy='19.6' r='3' fill='%2300A0AE'/%3E%3C/svg%3E">
+<style>
+:root{
+  --air:#F1F7F9; --paper:#FFFFFF; --wash:#E4F2F4;
+  --ink:#12313C; --ink-soft:#5E7C88; --ink-faint:#93AAB4;
+  --mist:#DCE8ED; --mist-soft:#EAF1F4;
+  --aqua:#00A0AE; --aqua-deep:#00808C; --aqua-pale:#E2F3F5;
+  --rose:#C2506A; --rose-pale:#FAECEF;
+  --sun:#B7791F; --sun-pale:#FBF2DE;
+  --sans:'Hiragino Sans','Hiragino Kaku Gothic ProN','BIZ UDPGothic','Yu Gothic UI','Yu Gothic',Meiryo,system-ui,sans-serif;
+  --mono:ui-monospace,'SF Mono',SFMono-Regular,Menlo,Consolas,'Hiragino Sans',monospace;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--air);color:var(--ink);font-family:var(--sans);
+  font-size:15px;line-height:1.8;-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0 0 auto 0;height:420px;pointer-events:none;
+  background:linear-gradient(to bottom,var(--wash) 0%,rgba(228,242,244,0) 100%)}
+.page{position:relative;max-width:760px;margin:0 auto;padding:60px 28px 100px}
+
+.head{position:relative;margin-bottom:44px}
+.head .ghost{position:absolute;right:-26px;top:-30px;width:200px;height:200px;
+  opacity:.05;pointer-events:none;color:var(--aqua)}
+.lockup{display:flex;align-items:center;gap:13px;margin-bottom:20px}
+.lockup .mark{width:40px;height:40px;flex:none;color:var(--aqua)}
+.name{font-size:21px;font-weight:600;letter-spacing:.1em;margin:0;line-height:1}
+.name small{display:block;font-family:var(--mono);font-size:9.5px;font-weight:400;
+  letter-spacing:.24em;color:var(--ink-faint);margin-top:7px}
+h1{font-size:29px;font-weight:600;letter-spacing:-.01em;line-height:1.5;margin:0 0 12px}
+.lede{color:var(--ink-soft);font-size:14.5px;margin:0;max-width:46ch}
+
+.card{background:var(--paper);border:1px solid var(--mist);border-radius:14px;
+  box-shadow:0 1px 2px rgba(18,49,60,.03),0 8px 24px -18px rgba(18,49,60,.16)}
+.card-pad{padding:22px 24px}
+.tag{font-family:var(--mono);font-size:10px;font-weight:500;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--ink-faint);margin:0 0 11px;display:block}
+textarea,input[type=text]{width:100%;background:var(--mist-soft);color:var(--ink);
+  border:1px solid transparent;border-radius:9px;padding:14px 15px;font-family:var(--mono);
+  font-size:12.5px;line-height:1.85;resize:vertical;transition:background .16s,border-color .16s}
+textarea{min-height:118px}
+textarea::placeholder,input::placeholder{color:var(--ink-faint)}
+textarea:hover,input:hover{background:#E4EDF1}
+textarea:focus,input:focus{outline:none;background:var(--paper);border-color:var(--aqua);
+  box-shadow:0 0 0 3px var(--aqua-pale)}
+
+.meta{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin:24px 0 18px}
+.tally{font-size:13.5px;color:var(--ink-soft);display:flex;align-items:center;gap:10px}
+.tally b{color:var(--aqua-deep);font-weight:700;font-family:var(--mono);font-size:15px}
+.tally .warn{color:var(--rose)}
+.rule{flex:1;height:1px;background:var(--mist);min-width:16px}
+.stub{width:20px;height:1px;background:var(--mist);flex:none}
+.acts{display:flex;gap:8px}
+
+button{font-family:var(--sans);cursor:pointer;border-radius:8px;display:inline-flex;
+  align-items:center;gap:7px;transition:all .16s;font-size:13px}
+button svg{width:15px;height:15px;flex:none}
+button:focus-visible{outline:2px solid var(--aqua);outline-offset:2px}
+.btn{background:var(--paper);border:1px solid var(--mist);color:var(--ink-soft);padding:8px 14px;font-weight:500}
+.btn:hover{border-color:var(--aqua);color:var(--aqua-deep);background:var(--aqua-pale)}
+.btn:disabled{opacity:.45;cursor:default}
+.btn:disabled:hover{border-color:var(--mist);color:var(--ink-soft);background:var(--paper)}
+
+.item{margin-bottom:14px;overflow:hidden}
+.item-head{display:flex;align-items:center;gap:11px;padding:14px 20px;border-bottom:1px solid var(--mist-soft)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--aqua);flex:none}
+.item.bad .dot{background:transparent;border:1.5px solid var(--rose);width:8px;height:8px}
+.no{font-family:var(--mono);font-size:11px;color:var(--ink-faint);letter-spacing:.1em}
+.vid{font-family:var(--mono);font-size:13px;font-weight:500;letter-spacing:.04em}
+.item.bad .vid{color:var(--rose);font-weight:400}
+.src{font-family:var(--mono);font-size:10.5px;color:var(--ink-faint);margin-left:auto;
+  max-width:40%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;direction:rtl;text-align:right}
+.line{display:flex;align-items:flex-start;gap:16px;padding:16px 20px}
+.line + .line{border-top:1px solid var(--mist-soft)}
+.line-body{flex:1;min-width:0}
+.kind{font-family:var(--mono);font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--aqua-deep);margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.kind::before{content:"";width:14px;height:1.5px;background:var(--aqua);border-radius:1px}
+.line.alt .kind{color:var(--ink-faint)}
+.line.alt .kind::before{background:var(--mist);width:8px}
+.url{font-family:var(--mono);font-size:12px;line-height:1.7;word-break:break-all;margin:0}
+.line.alt .url{color:var(--ink-soft)}
+.copy{background:transparent;border:1px solid var(--mist);color:var(--ink-soft);
+  padding:7px 12px;flex:none;font-size:12.5px}
+.copy:hover{border-color:var(--aqua);color:var(--aqua-deep);background:var(--aqua-pale)}
+.copy.done{background:var(--aqua);border-color:var(--aqua);color:#fff}
+.note{padding:16px 20px;font-size:13.5px;color:var(--ink-soft);background:var(--rose-pale)}
+.note code{font-family:var(--mono);font-size:11.5px;color:var(--rose);word-break:break-all}
+
+.empty{border:1px dashed var(--mist);border-radius:14px;padding:48px 24px;text-align:center;
+  color:var(--ink-faint);font-size:13.5px}
+.empty svg{width:44px;height:44px;color:var(--aqua);opacity:.3;margin-bottom:14px}
+
+.setup{background:var(--sun-pale);border:1px solid #F0DFB4;border-radius:14px;padding:22px 24px;margin-bottom:20px}
+.setup h2{font-size:15px;font-weight:600;margin:0 0 8px;display:flex;align-items:center;gap:9px;color:var(--sun)}
+.setup h2 svg{width:17px;height:17px;flex:none}
+.setup p{margin:0 0 16px;font-size:13.5px;color:var(--ink-soft);line-height:1.85}
+.setup .tag{color:#A9843C}
+.setup input{background:rgba(255,255,255,.72)}
+.setup input:hover{background:#fff}
+.setup .tag + input{margin-bottom:16px}
+.setup .row-end{margin:0}
+
+details{margin-top:20px}
+summary{cursor:pointer;list-style:none;display:inline-flex;align-items:center;gap:9px;
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--ink-faint);padding:4px 0}
+summary::-webkit-details-marker{display:none}
+summary svg{width:15px;height:15px;transition:transform .2s}
+summary:hover{color:var(--aqua-deep)}
+summary:focus-visible{outline:2px solid var(--aqua);outline-offset:3px;border-radius:4px}
+details[open] summary svg{transform:rotate(90deg)}
+
+.caution{background:var(--paper);border:1px solid var(--mist);border-radius:14px;
+  padding:22px 24px;margin-bottom:20px;
+  box-shadow:0 1px 2px rgba(18,49,60,.03),0 8px 24px -18px rgba(18,49,60,.16)}
+.caution h2{font-size:14px;font-weight:600;margin:0 0 12px;display:flex;align-items:center;gap:9px}
+.caution h2 svg{width:16px;height:16px;color:var(--rose);flex:none}
+.caution p{color:var(--ink-soft);font-size:13px;line-height:1.95;margin:0 0 12px}
+.caution p:last-child{margin-bottom:0}
+.caution b{color:var(--ink);font-weight:600}
+.foot{margin-top:32px;color:var(--ink-faint);font-size:12px;line-height:1.9}
+
+@media (max-width:600px){
+  .page{padding:38px 18px 72px}
+  h1{font-size:24px}
+  .head .ghost{display:none}
+  .src{display:none}
+  .line{flex-wrap:wrap;gap:12px}
+  .copy{margin-left:auto}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="i-mark" viewBox="0 0 40 40">
+    <g fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round">
+      <path d="M9 15C15 11 22 11 27 13" opacity=".38"/>
+      <path d="M4 21C12 15 26 15 33 19"/>
+      <path d="M10 27C16 23 24 23 29 25" opacity=".62"/>
+    </g>
+    <circle cx="35.2" cy="19.6" r="2.7" fill="currentColor"/>
+  </symbol>
+  <symbol id="i-copy" viewBox="0 0 20 20">
+    <g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M13.5 6.5V4.6a1.6 1.6 0 0 0-1.6-1.6H4.6A1.6 1.6 0 0 0 3 4.6v7.3a1.6 1.6 0 0 0 1.6 1.6h1.9"/>
+      <rect x="6.5" y="6.5" width="10.5" height="10.5" rx="1.8"/>
+    </g>
+  </symbol>
+  <symbol id="i-check" viewBox="0 0 20 20">
+    <path d="M4 10.8C5.9 12 7.3 13.4 8.2 15 10 10.6 12.6 7.3 16 5.2"
+      fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="i-x" viewBox="0 0 20 20">
+    <g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+      <path d="M5.5 5.5 14.5 14.5"/><path d="M14.5 5.5 5.5 14.5"/>
+    </g>
+  </symbol>
+  <symbol id="i-stack" viewBox="0 0 20 20">
+    <g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+      <path d="M3.5 6.5h13"/><path d="M3.5 10h13" opacity=".55"/><path d="M3.5 13.5h9" opacity=".35"/>
+    </g>
+  </symbol>
+  <symbol id="i-slider" viewBox="0 0 20 20">
+    <g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+      <path d="M3 6.8h4.2M11.3 6.8H17"/><path d="M3 13.2h7.7M14.8 13.2H17"/>
+      <circle cx="9.2" cy="6.8" r="2.1"/><circle cx="12.8" cy="13.2" r="2.1"/>
+    </g>
+  </symbol>
+  <symbol id="i-chev" viewBox="0 0 20 20">
+    <path d="M8 5.5 12.5 10 8 14.5" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="i-alert" viewBox="0 0 20 20">
+    <g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+      <circle cx="10" cy="10" r="7.2"/><path d="M10 6.4v4.3"/>
+    </g>
+    <circle cx="10" cy="13.6" r="1" fill="currentColor"/>
+  </symbol>
+</defs></svg>
+
+<div class="page">
+
+  <header class="head">
+    <svg class="ghost" aria-hidden="true"><use href="#i-mark"/></svg>
+    <div class="lockup">
+      <svg class="mark" aria-hidden="true"><use href="#i-mark"/></svg>
+      <p class="name">そよぎ<small>soyogi</small></p>
+    </div>
+    <h1>YouTube のアドレスを、<br>お使いの形に整えます。</h1>
+    <p class="lede">動画IDを取り出して、指定した中継先のアドレスに組み立てるだけの道具です。すべてブラウザの中で動き、どこへも通信しません。</p>
+  </header>
+
+  <section class="caution">
+    <h2><svg aria-hidden="true"><use href="#i-alert"/></svg>決める前に、これだけ読んでください</h2>
+    <p><b>中継先を通すと、その場に居合わせた全員のIPアドレスが、中継先の運営者に渡ります。</b> 動画プレイヤーは URL をインスタンス内の全員に同期するため、貼った本人だけの話ではありません。視聴した一人ひとりの接続元が、相手側に記録されます。<b>そしてその人たちは、この注意書きを読んでいません。</b> 判断できるのは、貼るあなただけです。</p>
+    <p>VRChat は動画プレイヤーが無条件で信頼するドメインを公式に定めており、そこには <b>youtube.com / youtu.be / googlevideo.com / topaz.chat</b> などが並んでいます。中継サービスは含まれません。これは意図的な安全対策として設けられた仕組みです。VRChat では普段プレイヤー同士が互いの接続元を見られないため、ここは数少ない漏れ口にあたります。</p>
+    <p><b>転送先を握っているのは中継先の運営者です。</b> URL の見た目が変わらないまま、いつでも別の場所へ向け直せる立場にあります。素性の分かる相手かどうかを確かめてから使ってください。</p>
+    <p>また、公開インスタンスではワールド制作者が許可したホストしか通らないため、同じ URL でも見られる人と見られない人が出ます。</p>
+  </section>
+
+  <section class="setup" id="setup">
+    <h2><svg aria-hidden="true"><use href="#i-slider"/></svg>中継先を入れてください</h2>
+    <p>このツールは中継先を持っていません。ご自身が使っている解決サービスのアドレスを入れてください。何を経由するかは、入れた方ご自身の選択になります。</p>
+    <label class="tag" for="basePlain">解決サービス（動画IDの直前まで）</label>
+    <input type="text" id="basePlain" spellcheck="false" placeholder="https://example.com/…?videoUrl=https://www.youtube.com/watch?v=">
+    <label class="tag" for="baseWrap">転送を挟む場合のプレフィックス（任意）</label>
+    <input type="text" id="baseWrap" spellcheck="false" placeholder="空欄のままで構いません">
+    <p class="row-end" style="margin-top:10px;margin-bottom:0;font-size:12.5px">
+      転送を1つ足すごとに、IPアドレスを受け取る相手が1つ増えます。要らなければ空欄のままにしてください。
+    </p>
+    <p class="row-end" style="margin-top:16px;margin-bottom:0;font-size:12.5px">
+      入れた内容はこのページの中だけに置かれます。保存も送信もしません。
+    </p>
+  </section>
+
+  <div class="card card-pad">
+    <label class="tag" for="input">youtube url</label>
+    <textarea id="input" spellcheck="false"
+      placeholder="https://www.youtube.com/watch?v=…&#10;https://youtu.be/…&#10;動画IDだけでも読みます"></textarea>
+  </div>
+
+  <div class="meta">
+    <span class="tally" id="tally"></span>
+    <span class="rule"></span>
+    <span class="acts">
+      <button class="btn" id="copyAll" disabled><svg><use href="#i-stack"/></svg>全部コピー</button>
+      <button class="btn" id="clear"><svg><use href="#i-x"/></svg>消す</button>
+    </span>
+  </div>
+
+  <div id="out"></div>
+
+  <details id="cfgBox">
+    <summary><svg><use href="#i-chev"/></svg>中継先を変える</summary>
+    <div class="card card-pad" style="margin-top:16px">
+      <p style="margin:0 0 16px;font-size:13px;color:var(--ink-soft);line-height:1.85">
+        この種のサービスは終了することがあります。使えなくなったら、上の欄を書き換えてください。
+      </p>
+      <p style="margin:0"><button class="btn" id="jump"><svg><use href="#i-slider"/></svg>設定欄へ戻る</button></p>
+    </div>
+  </details>
+
+  <p class="foot">
+    このファイルは外部と一切通信しません。書体もアイコンも中に入っています。テキストエディタで開けば全部読めます。<br>
+    貼り先は IwaSync の Video ボタン側です。変換後は動画ファイルへの直リンクになるため、ライブ配信用の Live 側ではありません。<br>
+    無保証・自由に改変および再配布可。
+  </p>
+
+</div>
+
+<script>
+(function(){
+  'use strict';
+  var $ = function(id){ return document.getElementById(id); };
+  var input = $('input'), out = $('out'), tally = $('tally'), copyAll = $('copyAll');
+  var basePlain = $('basePlain'), baseWrap = $('baseWrap');
+  var SVGNS = 'http://www.w3.org/2000/svg';
+
+  var ID_RE = /^[A-Za-z0-9_-]{11}$/;
+  var HOSTS = ['youtube.com','m.youtube.com','music.youtube.com','youtube-nocookie.com','youtu.be'];
+
+  function extractId(raw){
+    var s = raw.trim();
+    if (!s) return null;
+    if (ID_RE.test(s)) return s;
+    var u;
+    try { u = new URL(/^https?:\/\//i.test(s) ? s : 'https://' + s); } catch(e){ return null; }
+    var host = u.hostname.replace(/^www\./i,'').toLowerCase();
+    if (HOSTS.indexOf(host) === -1) return null;
+    if (host === 'youtu.be'){
+      var id = u.pathname.slice(1).split('/')[0];
+      return ID_RE.test(id) ? id : null;
+    }
+    var v = u.searchParams.get('v');
+    if (v && ID_RE.test(v)) return v;
+    var m = u.pathname.match(/^\/(?:shorts|live|embed|v)\/([A-Za-z0-9_-]{11})/);
+    return m ? m[1] : null;
+  }
+
+  function el(tag, cls, text){
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function icon(name){
+    var svg = document.createElementNS(SVGNS,'svg');
+    var use = document.createElementNS(SVGNS,'use');
+    use.setAttribute('href', '#i-' + name);
+    svg.appendChild(use);
+    return svg;
+  }
+  function iconBtn(cls, name, label){
+    var b = el('button', cls);
+    b.appendChild(icon(name));
+    b.appendChild(document.createTextNode(label));
+    return b;
+  }
+
+  var plainList = [];
+
+  function buildItem(n, id, line, plain, wrapped){
+    var card = el('div','card item');
+    var head = el('div','item-head');
+    head.appendChild(el('span','dot'));
+    head.appendChild(el('span','no', n));
+    head.appendChild(el('span','vid', id));
+    var src = el('span','src', line);
+    src.title = line;
+    head.appendChild(src);
+    card.appendChild(head);
+
+    function row(cls, kind, url){
+      var r = el('div', cls);
+      var body = el('div','line-body');
+      body.appendChild(el('div','kind', kind));
+      body.appendChild(el('p','url', url));
+      r.appendChild(body);
+      var b = iconBtn('copy','copy','コピー');
+      b.dataset.url = url;
+      r.appendChild(b);
+      return r;
+    }
+    card.appendChild(row('line','そのまま', plain));
+    if (wrapped) card.appendChild(row('line alt','転送付き', wrapped));
+    return card;
+  }
+
+  function buildBad(n, line){
+    var card = el('div','card item bad');
+    var head = el('div','item-head');
+    head.appendChild(el('span','dot'));
+    head.appendChild(el('span','no', n));
+    head.appendChild(el('span','vid','読み取れません'));
+    card.appendChild(head);
+    var note = el('div','note');
+    note.appendChild(document.createTextNode('YouTube の URL か、11文字の動画IDを入れてください。'));
+    note.appendChild(el('br'));
+    note.appendChild(el('code', null, line));
+    card.appendChild(note);
+    return card;
+  }
+
+  function emptyBox(msg){
+    var box = el('div','empty');
+    box.appendChild(icon('mark'));
+    box.appendChild(el('div', null, msg));
+    return box;
+  }
+
+  function setTally(nodes){
+    tally.textContent = '';
+    tally.appendChild(el('span','stub'));
+    nodes.forEach(function(n){ tally.appendChild(n); });
+  }
+
+  function render(){
+    var prefix = basePlain.value.trim();
+    var wrapPrefix = baseWrap.value.trim();
+    var lines = input.value.split('\n').map(function(l){ return l.trim(); }).filter(Boolean);
+    plainList = [];
+    out.textContent = '';
+
+    if (!prefix){
+      out.appendChild(emptyBox('上の「中継先」を入れると、ここに変換後のアドレスが出ます。'));
+      setTally([document.createTextNode('中継先が未設定です')]);
+      copyAll.disabled = true;
+      return;
+    }
+    if (!lines.length){
+      out.appendChild(emptyBox('YouTube の URL を貼ると、ここに変換後のアドレスが出ます。'));
+      setTally([document.createTextNode('待機中')]);
+      copyAll.disabled = true;
+      return;
+    }
+
+    var ok = 0;
+    lines.forEach(function(line, i){
+      var id = extractId(line);
+      var n = String(i + 1);
+      if (n.length < 2) n = '0' + n;
+      if (!id){ out.appendChild(buildBad(n, line)); return; }
+      ok++;
+      var plain = prefix + id;
+      var wrapped = wrapPrefix ? wrapPrefix + plain : null;
+      plainList.push(plain);
+      out.appendChild(buildItem(n, id, line, plain, wrapped));
+    });
+
+    var bad = lines.length - ok;
+    var parts = [el('b', null, String(ok)), document.createTextNode(' 本を変換')];
+    if (bad) parts.push(el('span','warn','　/　' + bad + ' 本は読み取れません'));
+    setTally(parts);
+    copyAll.disabled = ok === 0;
+  }
+
+  function copyText(text){
+    if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text);
+    return new Promise(function(res, rej){
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly','');
+      ta.style.cssText = 'position:absolute;left:-9999px;top:0';
+      document.body.appendChild(ta);
+      ta.select();
+      var done = document.execCommand('copy');
+      document.body.removeChild(ta);
+      done ? res() : rej(new Error('copy failed'));
+    });
+  }
+
+  function flash(btn, label, ic){
+    if (!btn.dataset.label) btn.dataset.label = btn.textContent;
+    btn.textContent = '';
+    btn.appendChild(icon(ic));
+    btn.appendChild(document.createTextNode(label));
+    btn.classList.add('done');
+    clearTimeout(btn._t);
+    btn._t = setTimeout(function(){
+      btn.textContent = '';
+      btn.appendChild(icon('copy'));
+      btn.appendChild(document.createTextNode(btn.dataset.label));
+      btn.classList.remove('done');
+    }, 1500);
+  }
+
+  out.addEventListener('click', function(e){
+    var btn = e.target.closest ? e.target.closest('.copy') : null;
+    if (!btn) return;
+    copyText(btn.dataset.url)
+      .then(function(){ flash(btn,'コピー済み','check'); })
+      .catch(function(){ flash(btn,'手動で選択','x'); });
+  });
+
+  copyAll.addEventListener('click', function(e){
+    if (!plainList.length) return;
+    var b = e.currentTarget;
+    var restore = function(){
+      b.textContent = '';
+      b.appendChild(icon('stack'));
+      b.appendChild(document.createTextNode('全部コピー'));
+      b.classList.remove('done');
+    };
+    copyText(plainList.join('\n')).then(function(){
+      b.textContent = '';
+      b.appendChild(icon('check'));
+      b.appendChild(document.createTextNode(plainList.length + ' 本コピー済み'));
+      clearTimeout(b._t); b._t = setTimeout(restore, 1500);
+    }).catch(function(){
+      b.textContent = '';
+      b.appendChild(icon('x'));
+      b.appendChild(document.createTextNode('コピーできません'));
+      clearTimeout(b._t); b._t = setTimeout(restore, 1500);
+    });
+  });
+
+  $('clear').addEventListener('click', function(){ input.value = ''; render(); input.focus(); });
+  $('jump').addEventListener('click', function(){
+    $('setup').scrollIntoView({behavior:'smooth', block:'center'});
+    basePlain.focus();
+  });
+
+  input.addEventListener('input', render);
+  basePlain.addEventListener('input', render);
+  baseWrap.addEventListener('input', render);
+  render();
+})();
+</script>
+</body>
+</html>
